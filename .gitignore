@@ -8,11 +8,14 @@
 *.so
 *.obj
 *.exe
+*.pyc
 *.rej
 *.orig
 *.nfs
 *.diff
 *.patch
+!edg2qbe/port/c-port.patch
+!edg2qbe/qbe/patches/*.patch
 a.out
 core
 cscope.out
@@ -45,6 +48,7 @@ util/edg_decode
 util/edg_munch
 util/edg_prelink
 util/mk_errinfo
+edg2qbe/edg-qbe
 bin
 !dev_tools/bin
 .last_make_targets

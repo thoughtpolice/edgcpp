@@ -1,0 +1,72 @@
+Subject: [PATCH 01/11] arm64: use x8 for environment and sret pointers
+
+The AArch64 procedure-call standard assigns x8 to indirect results. Keep the environment/sret extension on that register as well and reject calls or functions that need both meanings simultaneously.
+
+---
+diff --git a/arm64/abi.c b/arm64/abi.c
+--- a/arm64/abi.c
++++ b/arm64/abi.c
+@@ -55,7 +55,7 @@
+  *        | |    |    ` gp regs passed          (0..8)
+  *        | |     ` fp regs passed              (0..8)
+  *        | ` indirect result register x8 used  (0..1)
+- *        ` env pointer passed in x9            (0..1)
++ *        ` env/sret pointer passed in x8       (0..1)
+  */
+ 
+ static int
+@@ -282,7 +282,7 @@
+ 			break;
+ 		case Opare:
+ 		case Oarge:
+-			*c->reg = R9;
++			*c->reg = R8;
+ 			*c->cls = Kl;
+ 			envc = 1;
+ 			break;
+@@ -321,15 +321,15 @@
+ arm64_argregs(Ref r, int p[2])
+ {
+ 	bits b;
+-	int ngp, nfp, x8, x9;
++	int ngp, nfp, x8, env;
+ 
+ 	assert(rtype(r) == RCall);
+ 	ngp = (r.val >> 5) & 15;
+ 	nfp = (r.val >> 9) & 15;
+ 	x8 = (r.val >> 13) & 1;
+-	x9 = (r.val >> 14) & 1;
++	env = (r.val >> 14) & 1;
+ 	if (p) {
+-		p[0] = ngp + x8 + x9;
++		p[0] = ngp + (x8 | env);
+ 		p[1] = nfp;
+ 	}
+ 	b = 0;
+@@ -337,7 +337,7 @@
+ 		b |= BIT(R0+ngp);
+ 	while (nfp--)
+ 		b |= BIT(V0+nfp);
+-	return b | ((bits)x8 << R8) | ((bits)x9 << R9);
++	return b | ((bits)(x8 | env) << R8);
+ }
+ 
+ static void
+@@ -396,6 +396,8 @@
+ 		typclass(&cr, &typ[i1->arg[1].val], gpreg, fpreg);
+ 		stkblob(i1->to, &cr, fn, ilp);
+ 		cty |= (cr.nfp << 2) | cr.ngp;
++		if ((cty & (1 << 14)) && (cr.class & Cptr))
++			err("env/sret and aggregate indirect result both use x8");
+ 		if (cr.class & Cptr) {
+ 			/* spill & rega expect calls to be
+ 			 * followed by copies from regs,
+@@ -500,6 +502,8 @@
+ 	if (fn->retty >= 0) {
+ 		typclass(&cr, &typ[fn->retty], gpreg, fpreg);
+ 		if (cr.class & Cptr) {
++			if (fn->reg & BIT(R8))
++				err("env/sret and aggregate indirect result both use x8");
+ 			fn->retr = newtmp("abi", Kl, fn);
+ 			emit(Ocopy, Kl, fn->retr, TMP(R8), R);
+ 			fn->reg |= BIT(R8);

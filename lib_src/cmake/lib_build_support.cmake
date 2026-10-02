@@ -157,7 +157,7 @@ function(add_edg_cpp_rt_target target_name)
 
   # Declare the library
   add_library(${target_name} ${obj_files})
-  set_target_properties(${target_name} PROPERTIES LINKER_LANGUAGE CXX)
+  set_target_properties(${target_name} PROPERTIES LINKER_LANGUAGE C)
 
   # Normalize the name based on the configuration/expectations of ECCP.
   # Additionally, set whether this is enabled by default.

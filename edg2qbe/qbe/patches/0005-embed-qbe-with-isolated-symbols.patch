@@ -1,0 +1,320 @@
+Subject: [PATCH 05/11] qbe: add an embeddable stream entry point
+
+Add a serial, non-reentrant stream compilation API and isolate QBE global symbols so the backend can be linked into a larger compiler. Preserve the command-line entry point under an isolated name and report parser errors to the caller.
+
+---
+diff --git a/all.h b/all.h
+--- a/all.h
++++ b/all.h
+@@ -4,6 +4,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include "namespace.h"
+ 
+ #define MAKESURE(what, x) typedef char make_sure_##what[(x)?1:-1]
+ #define die(...) die_(__FILE__, __VA_ARGS__)
+diff --git a/config.h b/config.h
+new file mode 100644
+--- /dev/null
++++ b/config.h
+@@ -0,0 +1,2 @@
++/* The embedded frontend/adapter targets Linux AArch64. */
++#define Deftgt T_arm64
+diff --git a/main.c b/main.c
+--- a/main.c
++++ b/main.c
+@@ -2,6 +2,21 @@
+ #include "config.h"
+ #include <ctype.h>
+ #include <getopt.h>
++#include <setjmp.h>
++#include <errno.h>
++
++/* QBE owns global compiler state: these entry points are serial, not reentrant.
++ * Parse errors return to the stream caller; invariant failures still abort. */
++static jmp_buf compile_error;
++static int compiling;
++
++void
++il2qbe_qbe_error(void)
++{
++	if (compiling)
++		longjmp(compile_error, 1);
++	exit(1);
++}
+ 
+ Target T;
+ 
+@@ -128,7 +143,39 @@
+ }
+ 
+ int
+-main(int ac, char *av[])
++il2qbe_qbe_compile(FILE *input, FILE *output, const char *target,
++                  const char *name)
++{
++	Target **t;
++
++	for (t=tlist; *t && strcmp(target, (*t)->name); t++)
++		;
++	if (!*t) {
++		fprintf(stderr, "qbe: unknown target '%s'\n", target);
++		return 1;
++	}
++	T = **t;
++	outf = output;
++	dbg = 0;
++	memset(debug, 0, sizeof debug);
++	if (setjmp(compile_error)) {
++		compiling = 0;
++		freeall();
++		return 1;
++	}
++	compiling = 1;
++	parse(input, (char *)name, dbgfile, data, func);
++	T.emitfin(output);
++	compiling = 0;
++	if (ferror(input) || ferror(output) || fflush(output)) {
++		fprintf(stderr, "qbe: stream I/O failed: %s\n", strerror(errno));
++		return 1;
++	}
++	return 0;
++}
++
++int
++il2qbe_qbe_main(int ac, char *av[])
+ {
+ 	Target **t;
+ 	FILE *inf, *hf;
+@@ -137,6 +184,9 @@
+ 
+ 	T = Deftgt;
+ 	outf = stdout;
++	optind = 0;
++	dbg = 0;
++	memset(debug, 0, sizeof debug);
+ 	while ((c = getopt(ac, av, "hd:o:t:")) != -1)
+ 		switch (c) {
+ 		case 'd':
+@@ -202,11 +252,23 @@
+ 			}
+ 		}
+ 		parse(inf, f, dbgfile, data, func);
+-		fclose(inf);
++		if (ferror(inf)) {
++			fprintf(stderr, "cannot read '%s': %s\n", f, strerror(errno));
++			return 1;
++		}
++		if (inf != stdin && fclose(inf)) {
++			fprintf(stderr, "cannot close '%s': %s\n", f, strerror(errno));
++			return 1;
++		}
+ 	} while (++optind < ac);
+ 
+ 	if (!dbg)
+ 		T.emitfin(outf);
+ 
+-	exit(0);
+-}
++	if (ferror(outf) || fflush(outf) ||
++	    (outf != stdout && fclose(outf))) {
++		fprintf(stderr, "cannot write QBE output: %s\n", strerror(errno));
++		return 1;
++	}
++	return 0;
++}
+diff --git a/namespace.h b/namespace.h
+new file mode 100644
+--- /dev/null
++++ b/namespace.h
+@@ -0,0 +1,160 @@
++/* QBE-only symbol isolation; included by vendor/all.h, never EDG. */
++#ifndef IL2QBE_QBE_NAMESPACE_H
++#define IL2QBE_QBE_NAMESPACE_H
++#define T il2qbe_qbe_T
++#define T_amd64_apple il2qbe_qbe_T_amd64_apple
++#define T_amd64_sysv il2qbe_qbe_T_amd64_sysv
++#define T_amd64_win il2qbe_qbe_T_amd64_win
++#define T_arm64 il2qbe_qbe_T_arm64
++#define T_arm64_apple il2qbe_qbe_T_arm64_apple
++#define T_rv64 il2qbe_qbe_T_rv64
++#define addbins il2qbe_qbe_addbins
++#define addcon il2qbe_qbe_addcon
++#define addins il2qbe_qbe_addins
++#define adduse il2qbe_qbe_adduse
++#define alias il2qbe_qbe_alias
++#define alloc il2qbe_qbe_alloc
++#define amd64_isel il2qbe_qbe_amd64_isel
++#define amd64_op il2qbe_qbe_amd64_op
++#define amd64_sysv_abi il2qbe_qbe_amd64_sysv_abi
++#define amd64_sysv_argregs il2qbe_qbe_amd64_sysv_argregs
++#define amd64_sysv_emitfn il2qbe_qbe_amd64_sysv_emitfn
++#define amd64_sysv_rclob il2qbe_qbe_amd64_sysv_rclob
++#define amd64_sysv_retregs il2qbe_qbe_amd64_sysv_retregs
++#define amd64_sysv_rsave il2qbe_qbe_amd64_sysv_rsave
++#define amd64_winabi_abi il2qbe_qbe_amd64_winabi_abi
++#define amd64_winabi_argregs il2qbe_qbe_amd64_winabi_argregs
++#define amd64_winabi_emitfn il2qbe_qbe_amd64_winabi_emitfn
++#define amd64_winabi_rclob il2qbe_qbe_amd64_winabi_rclob
++#define amd64_winabi_retregs il2qbe_qbe_amd64_winabi_retregs
++#define amd64_winabi_rsave il2qbe_qbe_amd64_winabi_rsave
++#define apple_extsb il2qbe_qbe_apple_extsb
++#define argcls il2qbe_qbe_argcls
++#define arm64_abi il2qbe_qbe_arm64_abi
++#define arm64_argregs il2qbe_qbe_arm64_argregs
++#define arm64_emitfn il2qbe_qbe_arm64_emitfn
++#define arm64_isel il2qbe_qbe_arm64_isel
++#define arm64_logimm il2qbe_qbe_arm64_logimm
++#define arm64_rclob il2qbe_qbe_arm64_rclob
++#define arm64_retregs il2qbe_qbe_arm64_retregs
++#define arm64_rsave il2qbe_qbe_arm64_rsave
++#define bsclr il2qbe_qbe_bsclr
++#define bscopy il2qbe_qbe_bscopy
++#define bscount il2qbe_qbe_bscount
++#define bsdiff il2qbe_qbe_bsdiff
++#define bsequal il2qbe_qbe_bsequal
++#define bsinit il2qbe_qbe_bsinit
++#define bsinter il2qbe_qbe_bsinter
++#define bsiter il2qbe_qbe_bsiter
++#define bsset il2qbe_qbe_bsset
++#define bsunion il2qbe_qbe_bsunion
++#define bszero il2qbe_qbe_bszero
++#define chuse il2qbe_qbe_chuse
++#define clsmerge il2qbe_qbe_clsmerge
++#define cmpeqz il2qbe_qbe_cmpeqz
++#define cmpop il2qbe_qbe_cmpop
++#define cmpwlneg il2qbe_qbe_cmpwlneg
++#define coalesce il2qbe_qbe_coalesce
++#define con01 il2qbe_qbe_con01
++#define copyref il2qbe_qbe_copyref
++#define curi il2qbe_qbe_curi
++#define debug il2qbe_qbe_debug
++#define die_ il2qbe_qbe_die_
++#define dom il2qbe_qbe_dom
++#define dumpts il2qbe_qbe_dumpts
++#define elf_emitfin il2qbe_qbe_elf_emitfin
++#define elf_emitfnfin il2qbe_qbe_elf_emitfnfin
++#define elimsb il2qbe_qbe_elimsb
++#define emalloc il2qbe_qbe_emalloc
++#define emit il2qbe_qbe_emit
++#define emitdat il2qbe_qbe_emitdat
++#define emitdbgfile il2qbe_qbe_emitdbgfile
++#define emitdbgloc il2qbe_qbe_emitdbgloc
++#define emitfnlnk il2qbe_qbe_emitfnlnk
++#define emiti il2qbe_qbe_emiti
++#define emitlnk il2qbe_qbe_emitlnk
++#define err il2qbe_qbe_err
++#define escapes il2qbe_qbe_escapes
++#define fillalias il2qbe_qbe_fillalias
++#define fillcfg il2qbe_qbe_fillcfg
++#define fillcost il2qbe_qbe_fillcost
++#define filldepth il2qbe_qbe_filldepth
++#define filldom il2qbe_qbe_filldom
++#define fillfron il2qbe_qbe_fillfron
++#define filllive il2qbe_qbe_filllive
++#define fillloop il2qbe_qbe_fillloop
++#define fillpreds il2qbe_qbe_fillpreds
++#define filluse il2qbe_qbe_filluse
++#define foldint il2qbe_qbe_foldint
++#define foldref il2qbe_qbe_foldref
++#define freeall il2qbe_qbe_freeall
++#define gcm il2qbe_qbe_gcm
++#define getalias il2qbe_qbe_getalias
++#define getcon il2qbe_qbe_getcon
++#define gvn il2qbe_qbe_gvn
++#define hash il2qbe_qbe_hash
++#define icpy il2qbe_qbe_icpy
++#define idup il2qbe_qbe_idup
++#define ifconvert il2qbe_qbe_ifconvert
++#define ifgraph il2qbe_qbe_ifgraph
++#define igroup il2qbe_qbe_igroup
++#define insb il2qbe_qbe_insb
++#define intern il2qbe_qbe_intern
++#define iscmp il2qbe_qbe_iscmp
++#define isconbits il2qbe_qbe_isconbits
++#define isreg il2qbe_qbe_isreg
++#define lca il2qbe_qbe_lca
++#define liveon il2qbe_qbe_liveon
++#define loadopt il2qbe_qbe_loadopt
++#define loadsz il2qbe_qbe_loadsz
++#define loopiter il2qbe_qbe_loopiter
++#define macho_emitfin il2qbe_qbe_macho_emitfin
++#define multloop il2qbe_qbe_multloop
++#define narrowpars il2qbe_qbe_narrowpars
++#define newblk il2qbe_qbe_newblk
++#define newcon il2qbe_qbe_newcon
++#define newtmp il2qbe_qbe_newtmp
++#define optab il2qbe_qbe_optab
++#define parse il2qbe_qbe_parse
++#define pe_emitfin il2qbe_qbe_pe_emitfin
++#define phiarg il2qbe_qbe_phiarg
++#define phiargn il2qbe_qbe_phiargn
++#define phicls il2qbe_qbe_phicls
++#define phicopyref il2qbe_qbe_phicopyref
++#define pinned il2qbe_qbe_pinned
++#define printfn il2qbe_qbe_printfn
++#define printref il2qbe_qbe_printref
++#define promote il2qbe_qbe_promote
++#define reaches il2qbe_qbe_reaches
++#define reachesnotvia il2qbe_qbe_reachesnotvia
++#define rega il2qbe_qbe_rega
++#define runmatch il2qbe_qbe_runmatch
++#define rv64_abi il2qbe_qbe_rv64_abi
++#define rv64_argregs il2qbe_qbe_rv64_argregs
++#define rv64_emitfn il2qbe_qbe_rv64_emitfn
++#define rv64_isel il2qbe_qbe_rv64_isel
++#define rv64_op il2qbe_qbe_rv64_op
++#define rv64_rclob il2qbe_qbe_rv64_rclob
++#define rv64_retregs il2qbe_qbe_rv64_retregs
++#define rv64_rsave il2qbe_qbe_rv64_rsave
++#define salloc il2qbe_qbe_salloc
++#define sdom il2qbe_qbe_sdom
++#define simpl il2qbe_qbe_simpl
++#define simplcfg il2qbe_qbe_simplcfg
++#define simpljmp il2qbe_qbe_simpljmp
++#define spill il2qbe_qbe_spill
++#define ssa il2qbe_qbe_ssa
++#define ssacheck il2qbe_qbe_ssacheck
++#define stashbits il2qbe_qbe_stashbits
++#define storesz il2qbe_qbe_storesz
++#define str il2qbe_qbe_str
++#define strf il2qbe_qbe_strf
++#define symeq il2qbe_qbe_symeq
++#define typ il2qbe_qbe_typ
++#define vfree il2qbe_qbe_vfree
++#define vgrow il2qbe_qbe_vgrow
++#define vnew il2qbe_qbe_vnew
++#define zeroval il2qbe_qbe_zeroval
++
++void il2qbe_qbe_error(void) __attribute__((noreturn));
++#endif
+diff --git a/parse.c b/parse.c
+--- a/parse.c
++++ b/parse.c
+@@ -183,7 +183,7 @@
+ 	vfprintf(stderr, s, ap);
+ 	fprintf(stderr, "\n");
+ 	va_end(ap);
+-	exit(1);
++	il2qbe_qbe_error();
+ }
+ 
+ static void
+diff --git a/ops.h b/ops.h
+--- a/ops.h
++++ b/ops.h
+@@ -10,6 +10,8 @@
+ #define F(a,b,c,d,e,f,g,h,i,j)
+ #endif
+ 
++#pragma push_macro("T")
++#undef T
+ #define T(a,b,c,d,e,f,g,h) {                          \
+ 	{[Kw]=K##a, [Kl]=K##b, [Ks]=K##c, [Kd]=K##d}, \
+ 	{[Kw]=K##e, [Kl]=K##f, [Ks]=K##g, [Kd]=K##h}  \
+@@ -221,3 +223,4 @@
+ #undef T
++#pragma pop_macro("T")
+ #undef X
+ #undef V

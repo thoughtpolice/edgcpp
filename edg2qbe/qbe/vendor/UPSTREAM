@@ -1,0 +1,22 @@
+QBE 1.3
+https://c9x.me/compile/release/qbe-1.3.tar.xz
+Archive SHA256: d587905d620dc5e1d2bfa7c2cc642b9b837aa89a3188c6e37b53d756cf66e320
+Patch series:
+  a4c367313f80b796848dd810c2d9e6a41cda18fa3d04a6112a864283c206b1c1  0001-arm64-use-x8-for-environment.patch
+  3788fa79e236d6a405b0296b7279889f856439df0854da7e3dbd3d48df1491a4  0002-arm64-emit-cfi-and-landing-pad-frame.patch
+  292663d82db56a7cd0873f1be0084862116cd72f7001dd0ec5dbadfd8bfa1abc  0003-arm64-support-external-tls.patch
+  74164889dfabb9721109103e41888d2958575ecd9ddd8da7b4d0e524c69ace22  0004-arm64-support-scoped-stack-intrinsics.patch
+  66c857aa2760a9ed8a031ce9ba22ba1beaca6ee48ee243dbc7a103278bc93db3  0005-embed-qbe-with-isolated-symbols.patch
+  e34434955ad59664dfb160e34c6591d2a68af05c7a124b23cc2318edc4472b4e  0006-backport-emit-strict-aliasing-fix.patch
+  ff4eea60e16ea58ff30ec714d5cee02194c6af8545eae51222312f5ec78ebd63  0007-backport-arm64-extern-offset.patch
+  de498b00ce852ea0d42e74210353e10e9fb801bb48921e539ce1b54dea5999fc  0008-backport-rv64-pc-relative-globals.patch
+  e9b7f021e640e054deb11491dc7767490443d66a557258b0016677b0edce1206  0009-copy-restore-width-analysis-visits.patch
+  8b78449a579805742c1f3ae43cfedc2e877e947ca4f16181e7876ba37e99fccd  0010-copy-preserve-phi-result-width.patch
+  141033c90e4b6472b725264126123cb3abf6ee1f004465825e811387452f4e5a  0011-arm64-legalize-unaligned-stack-offsets.patch
+Regenerate: python3 edg2qbe/qbe/update_vendor.py --archive edg2qbe/build/qbe-1.3.tar.xz
+Local changes: AArch64 CFI, ABI, TLS, dynamic-stack and stack-offset fixes;
+GVN width/type preservation, QBE-only symbol namespace and in-process FILE-stream entry point.
+Post-1.3 fixes: fa19d3c974dae37cf335781300d0e4791be0d87c,
+80d745c842b4dafe02a69a6eb15e4f8ff72d42fa, and
+e786f06032fefa2e3790d6b1c9e31ed138f475a6 from https://c9x.me/git/qbe.git.
+Ordinary builds consume these sources directly; no regeneration is needed.

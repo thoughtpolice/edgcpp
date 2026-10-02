@@ -1,0 +1,17 @@
+Subject: [PATCH 11/11] arm64: legalize unaligned stack-slot offsets
+
+AArch64 scaled load/store immediates require alignment to the access size. Materialize a stack address when a slot offset is in range but cannot be encoded for that width.
+
+---
+diff --git a/arm64/emit.c b/arm64/emit.c
+--- a/arm64/emit.c
++++ b/arm64/emit.c
+@@ -379,7 +379,7 @@ fixarg(Ref *pr, int sz, int t, E *e)
+ 	r = *pr;
+ 	if (rtype(r) == RSlot) {
+ 		s = slot(r, e);
+-		if (s > sz * 4095u) {
++		if (s > sz * 4095u || s % sz != 0) {
+ 			if (t < 0)
+ 				return 1;
+ 			i = &(Ins){Oaddr, Kl, TMP(t), {r}};

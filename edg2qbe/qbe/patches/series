@@ -1,0 +1,11 @@
+0001-arm64-use-x8-for-environment.patch
+0002-arm64-emit-cfi-and-landing-pad-frame.patch
+0003-arm64-support-external-tls.patch
+0004-arm64-support-scoped-stack-intrinsics.patch
+0005-embed-qbe-with-isolated-symbols.patch
+0006-backport-emit-strict-aliasing-fix.patch
+0007-backport-arm64-extern-offset.patch
+0008-backport-rv64-pc-relative-globals.patch
+0009-copy-restore-width-analysis-visits.patch
+0010-copy-preserve-phi-result-width.patch
+0011-arm64-legalize-unaligned-stack-offsets.patch

@@ -1,0 +1,98 @@
+[
+  {
+    "name": "library/stateful_values",
+    "standard": "c++20",
+    "sources": ["library/stateful_values.cpp"],
+    "stdout": "optional=17 variant=42 moved=9 bad=2 live=0\n",
+    "features": [
+      "optional disengagement, emplace replacement and move construction preserve exact tracked lifetimes",
+      "bad_optional_access and bad_variant_access unwind to typed handlers",
+      "variant alternative replacement destroys the previous tracked object",
+      "move-only variant alternatives retain their index and specified moved-from state",
+      "single-variant and Cartesian two-variant visitation produce actual alternative-dependent values"
+    ]
+  },
+  {
+    "name": "library/views_ranges",
+    "standard": "c++20",
+    "sources": ["library/views_ranges.cpp"],
+    "stdout": "views=3 sorted=2,3,1 pipeline=63 evaluations=3 text=dElta empty=1\n",
+    "features": [
+      "nonzero span subviews mutate only their original storage range",
+      "ranges sort and find apply member-pointer projections",
+      "string_view substrings observe mutation at their nonzero base offset",
+      "filter-transform pipelines defer transformation until dereference and do not cache transformed values",
+      "empty terminal span and string_view subviews and empty transform pipelines remain valid"
+    ]
+  },
+  {
+    "name": "library/bits_bytes",
+    "standard": "c++20",
+    "sources": ["library/bits_bytes.cpp"],
+    "stdout": "bits=13 rotate=34567812 zeros=12/32 bytes=12345678 changed=123456f0\n",
+    "features": [
+      "runtime 32-bit popcount and leading/trailing zero counts include the all-zero boundary",
+      "rotations handle negative and exact-width or multiple-width counts",
+      "bit_width, bit_floor, bit_ceil and has_single_bit distinguish zero and ordinary values",
+      "bit_cast transfers a specified 32-bit value through a four-byte aggregate and back",
+      "std::endian selects byte-order checks and least-significant-byte mutation without assuming native endian"
+    ]
+  },
+  {
+    "name": "library/vector_exceptions",
+    "standard": "c++20",
+    "sources": ["library/vector_exceptions.cpp"],
+    "stdout": "vector_preserved=1 exceptions=3 rejected=3 live=0 blocks=0\n",
+    "features": [
+      "a real std::allocator-backed stateful allocator tracks live allocation blocks and slots",
+      "partial-copy failure during reserve preserves vector values, size, capacity and data address",
+      "throwing appended constructors preserve a full vector during reallocation and a vector with spare capacity",
+      "successful reallocation and append retain correct values without asserting incidental move counts or capacities",
+      "failed operations destroy intermediate elements and release temporary storage with no leaked lifetimes or allocations"
+    ]
+  },
+  {
+    "name": "library/shared_ownership",
+    "standard": "c++20",
+    "sources": ["library/shared_ownership.cpp"],
+    "stdout": "shared=42 expired=1 aligned=1 destroyed=4 unowned=1\n",
+    "features": [
+      "enable_shared_from_this and weak_from_this share the original owning control block",
+      "aliasing shared_ptr owns the enclosing object while exposing and mutating a member",
+      "weak ownership stays live while only an alias remains and expires after the final owner releases",
+      "shared_from_this on an unowned object throws bad_weak_ptr",
+      "over-aligned make_shared, allocate_shared, make_unique and automatic objects satisfy actual pointer alignment",
+      "ownership transitions destroy each of four objects exactly once"
+    ]
+  },
+  {
+    "name": "library/synchronized_threads",
+    "standard": "c++20",
+    "sources": ["library/synchronized_threads.cpp"],
+    "stdout": "threads=24 phases=2 callbacks=2 published=156 stopped=1\n",
+    "features": [
+      "jthread injects a distinct stop_token into each worker callable",
+      "latch readiness and two reusable barrier phases publish per-worker state deterministically",
+      "barrier completion executes exactly once per phase",
+      "stop callbacks execute once and repeated request_stop calls report no new request",
+      "counting_semaphore gates both workers until stop has been requested",
+      "atomic wait/notify with release/acquire publishes a non-atomic payload without data races or timing assumptions",
+      "explicit joins expose deterministic worker results and leave both threads non-joinable"
+    ]
+  },
+  {
+    "name": "library/expected_pipeline",
+    "standard": "c++23",
+    "sources": ["library/expected_pipeline.cpp"],
+    "stdout": "expected=43,5,1 errors=3,11 moved=39 monadic=3/2/4 bad_value=1\n",
+    "features": [
+      "from_chars validates full input consumption before expected value/error propagation",
+      "expected and_then, transform and or_else run only on their applicable value or error paths",
+      "overflow and malformed errors propagate while negative input recovery produces a checked value",
+      "bad_expected_access preserves the original error and transform_error translates only error states",
+      "lvalue transform receives a mutable reference while rvalue monadic operations transfer a move-only value",
+      "expected<void, E> composes a void transform with a value-returning continuation",
+      "std::to_underlying preserves the specified scoped-enum error codes"
+    ]
+  }
+]

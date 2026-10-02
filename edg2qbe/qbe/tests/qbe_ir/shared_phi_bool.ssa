@@ -1,0 +1,21 @@
+export function w $normalize(w %choose, w %left, w %right) {
+@start
+	jnz %choose, @left, @right
+@left
+	jmp @join
+@right
+	jmp @join
+@join
+	%value =w phi @left %left, @right %right
+	%extended =w extuh %value
+	%masked =w and %extended, %value
+	%boolean =w cnew %masked, 0
+	ret %boolean
+}
+
+export function w $main() {
+@start
+	%result =w call $normalize(w 1, w 162, w 162)
+	%bad =w cnew %result, 1
+	ret %bad
+}

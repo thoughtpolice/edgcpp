@@ -1,0 +1,8 @@
+[
+  {"name":"il/control_flow","standard":"c++20","sources":["il/control_flow.cpp"],"stdout":"","features":["loops and branches","binary128 long-double constant evaluation"]},
+  {"name":"il/templates","standard":"c++20","sources":["il/templates.cpp"],"stdout":"","features":["concepts","constexpr aggregates","constrained generic lambda"]},
+  {"name":"il/classes","standard":"c++20","sources":["il/classes.cpp"],"stdout":"","features":["virtual dispatch","inheritance","typed catch"]},
+  {"name":"libstdcxx/containers","standard":"c++20","sources":["libstdcxx/containers.cpp"],"stdout":"sorted=1,2,3,4 sum=10 edg=2 gcc=1\n","features":["vector sort and erase","map string keys"]},
+  {"name":"libstdcxx/lifetimes","standard":"c++20","sources":["libstdcxx/lifetimes.cpp"],"stdout":"edg: unwind live=0 answer=42 expired=1\n","features":["virtual destruction","native exception unwinding","shared and weak ownership"]},
+  {"name":"libstdcxx/ranges_threads","standard":"c++20","sources":["libstdcxx/ranges_threads.cpp"],"stdout":"squares=56 async=57 thread=7\n","features":["lazy ranges","thread synchronization","async results"]}
+]

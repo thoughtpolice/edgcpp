@@ -12,7 +12,10 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release" AND APPLE)
 endif()
 
 # set the project name
-project(cpfe)
+project(cpfe LANGUAGES C)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED TRUE)
+set(CMAKE_C_EXTENSIONS NO)
 
 # Check for attempts to use an in-source build.
 if("${CMAKE_BINARY_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
@@ -26,8 +29,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
-    CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU" OR
+    CMAKE_C_COMPILER_ID MATCHES "Clang")
   if (UNIX AND NOT APPLE)
     # Perform static linking of the binary.
     add_link_options("$<$<CONFIG:Release>:-static>")
@@ -39,8 +42,8 @@ endif()
 
 # Attempt to determine the best linker
 if(NOT DEFINED EDG_PREFERRED_LINKER)
-  if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
-      CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  if (CMAKE_C_COMPILER_ID STREQUAL "GNU" OR
+      CMAKE_C_COMPILER_ID MATCHES "Clang")
     if(NOT DEFINED EDG_PREFERRED_LINKER_TRIAL)
       find_program(MOLD_LINKER ld.mold NO_CACHE)
       if(NOT MOLD_LINKER STREQUAL "MOLD_LINKER-NOTFOUND")
@@ -50,7 +53,7 @@ if(NOT DEFINED EDG_PREFERRED_LINKER)
 
     # Only use lld with Clang, it doesn't understand GCC's LTO format well (at
     # least at the time of writing).
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
       if(NOT DEFINED EDG_PREFERRED_LINKER_TRIAL)
         find_program(LLD_LINKER ld.lld NO_CACHE)
         if(NOT LLD_LINKER STREQUAL "LLD_LINKER-NOTFOUND")
@@ -83,8 +86,8 @@ if(NOT WIN32)
 endif()
 
 # For GCC and Clang provide an (off by default) option for colored output.
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
-    CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU" OR
+    CMAKE_C_COMPILER_ID MATCHES "Clang")
   set(FORCE_COLORED_OUTPUT FALSE CACHE BOOL "Enable colored output")
 else()
   unset(FORCE_COLORED_OUTPUT CACHE)
@@ -113,8 +116,7 @@ else()
   set(EDG_BASE "${EDG_HOST_BASE}" CACHE STRING "The EDG base to use.")
 endif()
 
-add_subdirectory(util)
-add_subdirectory(src)
+add_subdirectory(edg2qbe)
 
 if($CACHE{EDG_BUILD_LIB})
   if(NOT WIN32)

@@ -1,0 +1,98 @@
+[
+  {
+    "name": "negative/constraint_rejection",
+    "standard": "c++20",
+    "sources": [
+      "negative/constraint_rejection.cpp"
+    ],
+    "stdout": "",
+    "reject": true,
+    "features": [
+      "unsatisfied requires-clause rejected"
+    ]
+  },
+  {
+    "name": "negative/consteval_runtime",
+    "standard": "c++20",
+    "sources": [
+      "negative/consteval_runtime.cpp"
+    ],
+    "stdout": "",
+    "reject": true,
+    "features": [
+      "runtime argument to immediate function rejected"
+    ]
+  },
+  {
+    "name": "negative/narrowing_list",
+    "standard": "c++20",
+    "sources": [
+      "negative/narrowing_list.cpp"
+    ],
+    "stdout": "",
+    "reject": true,
+    "features": [
+      "aggregate list narrowing rejected"
+    ]
+  },
+  {
+    "name": "negative/deleted_copy",
+    "standard": "c++20",
+    "sources": [
+      "negative/deleted_copy.cpp"
+    ],
+    "stdout": "",
+    "reject": true,
+    "features": [
+      "deleted copy constructor rejected"
+    ]
+  },
+  {
+    "name": "negative/ambiguous_constraints",
+    "standard": "c++20",
+    "sources": [
+      "negative/ambiguous_constraints.cpp"
+    ],
+    "stdout": "",
+    "reject": true,
+    "features": [
+      "non-subsuming constrained overload ambiguity rejected"
+    ]
+  },
+  {
+    "name": "negative/private_constructor",
+    "standard": "c++20",
+    "sources": [
+      "negative/private_constructor.cpp"
+    ],
+    "stdout": "",
+    "reject": true,
+    "features": [
+      "access control in generic lambda instantiation"
+    ]
+  },
+  {
+    "name": "negative/invalid_constexpr",
+    "standard": "c++20",
+    "sources": [
+      "negative/invalid_constexpr.cpp"
+    ],
+    "stdout": "",
+    "reject": true,
+    "features": [
+      "constant-evaluated out-of-bounds access rejected"
+    ]
+  },
+  {
+    "name": "negative/designator_order",
+    "standard": "c++20",
+    "sources": [
+      "negative/designator_order.cpp"
+    ],
+    "stdout": "",
+    "reject": true,
+    "features": [
+      "C++ designated initializer declaration order enforced"
+    ]
+  }
+]

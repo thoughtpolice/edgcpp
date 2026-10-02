@@ -1,0 +1,36 @@
+Subject: [PATCH 09/11] copy: restore phi visit state after width analysis
+
+Treat Phi.visit as recursion-path state, not a persistent proof. Restore the previous marker on both successful and failed recursion so sibling traversals cannot mistake stale state for a cycle.
+
+---
+diff --git a/copy.c b/copy.c
+--- a/copy.c
++++ b/copy.c
+@@ -139,7 +139,7 @@ dwl(Fn *fn, Ref r, int w)
+ 	Ins *i;
+ 	uint n;
+ 	int64_t v;
+-	int x;
++	int old, x;
+ 
+ 	if (isconbits(fn, r, &v)
+ 	&& bitwidth(v) <= w)
+@@ -158,12 +158,16 @@ dwl(Fn *fn, Ref r, int w)
+ 			if (req(p->to, r))
+ 				break;
+ 		assert(p);
+-		if (p->visit && p->visit <= w)
++		old = p->visit;
++		if (old && old <= w)
+ 			return 1;
+ 		p->visit = w;
+ 		for (n=0; n<p->narg; n++)
+-			if (!dwl(fn, p->arg[n], w))
++			if (!dwl(fn, p->arg[n], w)) {
++				p->visit = old;
+ 				return 0;
++			}
++		p->visit = old;
+ 		return 1;
+ 	}
+ 

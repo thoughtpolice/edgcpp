@@ -1,0 +1,12 @@
+export function l $select(l %value) {
+@start
+	%condition =w cnel %value, 0
+	jnz %condition, @one, @zero
+@one
+	jmp @join
+@zero
+	jmp @join
+@join
+	%result =l phi @one 1, @zero 0
+	ret %result
+}

@@ -1,0 +1,68 @@
+Subject: [PATCH 07/11] arm64: fix extern with offset
+
+Backport upstream commit 80d745c842b4dafe02a69a6eb15e4f8ff72d42fa.
+
+---
+diff --git a/arm64/emit.c b/arm64/emit.c
+--- a/arm64/emit.c
++++ b/arm64/emit.c
+@@ -303,12 +303,13 @@ loadaddr(Con *c, char *rn, E *e)
+ 			    "\tadd\tR, R, #:tprel_lo12_nc:SO\n";
+ 		break;
+ 	case SExt:
++		assert(c->bits.i == 0);
+ 		if (T.apple)
+-			s = "\tadrp\tR, S@gotpageO\n"
+-			    "\tldr\tR, [R, S@gotpageoffO]\n";
++			s = "\tadrp\tR, S@gotpage\n"
++			    "\tldr\tR, [R, S@gotpageoff]\n";
+ 		else
+-			s = "\tadrp\tR, :got:SO\n"
+-			    "\tldr\tR, [R, #:got_lo12:SO]\n";
++			s = "\tadrp\tR, :got:S\n"
++			    "\tldr\tR, [R, #:got_lo12:S]\n";
+ 		break;
+ 	}
+ 
+diff --git a/arm64/isel.c b/arm64/isel.c
+--- a/arm64/isel.c
++++ b/arm64/isel.c
+@@ -78,9 +78,8 @@ fixarg(Ref *pr, int k, int phi, Fn *fn)
+ 	switch (rtype(r0)) {
+ 	case RCon:
+ 		c = &fn->con[r0.val];
+-		if (T.apple
+-		&& c->type == CAddr
+-		&& (c->sym.type & SThr)) {
++		if (c->type == CAddr && ((c->sym.type & SExt)
++		 || (T.apple && (c->sym.type & SThr)))) {
+ 			r1 = newtmp("isel", Kl, fn);
+ 			*pr = r1;
+ 			if (c->bits.i) {
+@@ -91,16 +90,19 @@ fixarg(Ref *pr, int k, int phi, Fn *fn)
+ 				emit(Oadd, Kl, r1, r2, r3);
+ 				r1 = r2;
+ 			}
+-			emit(Ocopy, Kl, r1, TMP(R0), R);
+-			r1 = newtmp("isel", Kl, fn);
+-			r2 = newtmp("isel", Kl, fn);
+-			emit(Ocall, 0, R, r1, CALL(33));
+-			emit(Ocopy, Kl, TMP(R0), r2, R);
+-			emit(Oload, Kl, r1, r2, R);
++			if (T.apple && (c->sym.type & SThr)) {
++				emit(Ocopy, Kl, r1, TMP(R0), R);
++				r1 = newtmp("isel", Kl, fn);
++				r2 = newtmp("isel", Kl, fn);
++				emit(Ocall, 0, R, r1, CALL(33));
++				emit(Ocopy, Kl, TMP(R0), r2, R);
++				emit(Oload, Kl, r1, r2, R);
++				r1 = r2;
++			}
+ 			cc = *c;
+ 			cc.bits.i = 0;
+ 			r3 = newcon(&cc, fn);
+-			emit(Ocopy, Kl, r2, r3, R);
++			emit(Ocopy, Kl, r1, r3, R);
+ 			break;
+ 		}
+ 		if (KBASE(k) == 0 && phi)

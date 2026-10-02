@@ -1,0 +1,25 @@
+Subject: [PATCH 04/11] arm64: lower scoped dynamic-stack intrinsics
+
+Lower the call-shaped stack save and restore intrinsics after register allocation, preserving normal call clobber behavior.
+
+---
+diff --git a/arm64/emit.c b/arm64/emit.c
+--- a/arm64/emit.c
++++ b/arm64/emit.c
+@@ -484,6 +495,16 @@
+ 		|| c->bits.i)
+ 			die("invalid call argument");
+ 		l = str(c->sym.id);
++		/* Native scoped VLAs use call-shaped stack intrinsics so
++		 * register allocation retains the normal call clobbers. */
++		if (!strcmp(l, "__edg_qbe_stack_save")) {
++			fputs("\tmov\tx0, sp\n", e->f);
++			break;
++		}
++		if (!strcmp(l, "__edg_qbe_stack_restore")) {
++			fputs("\tmov\tsp, x0\n", e->f);
++			break;
++		}
+ 		p = l[0] == '"' ? "" : T.assym;
+ 		fprintf(e->f, "\tbl\t%s%s\n", p, l);
+ 		break;

@@ -1,0 +1,105 @@
+[
+  {
+    "name": "modern/subobject_lifetime",
+    "standard": "c++20",
+    "sources": ["modern/subobject_lifetime.cpp"],
+    "stdout": "subobject-lifetime return=2 throw=31 argument=17 constructor=19 order=21\n",
+    "features": [
+      "Member reference binding extends the containing temporary through early return and exception unwinding",
+      "A throwing argument destructor destroys an already constructed lifetime-extended object",
+      "A throwing constructor leaves only fully constructed enclosing objects for cleanup",
+      "Exact destruction order and construction counts detect double cleanup and premature destruction"
+    ]
+  },
+  {
+    "name": "modern/concepts_folds",
+    "standard": "c++20",
+    "sources": ["modern/concepts_folds.cpp"],
+    "stdout": "concepts picks=0,10,20 members=7,16 fold=1234 sum=10\n",
+    "features": [
+      "Named-concept subsumption selects signed integral over integral and unconstrained overloads",
+      "Requires expressions and compound return constraints distinguish read-only and mutable value interfaces",
+      "Constrained variadic generic lambda rejects an empty pack and non-integral arguments",
+      "Comma-fold sequencing preserves the 1,2,3,4 append order and produces state 1234"
+    ]
+  },
+  {
+    "name": "modern/constant_evaluation",
+    "standard": "c++23",
+    "sources": ["modern/constant_evaluation.cpp"],
+    "stdout": "constants branch=50,22 table=40,56 factorial=120 counter=38\n",
+    "features": [
+      "C++23 if consteval permits an immediate-function call only on the constant-evaluation branch",
+      "The same constexpr transform returns 50 in constant evaluation and 22 for runtime input 7",
+      "Structural class NTTP equality identifies identical class-template specializations",
+      "Constexpr table construction and factorial calculations are also checked with volatile-derived runtime inputs",
+      "Constinit guarantees initialization but leaves the global counter mutable at runtime"
+    ]
+  },
+  {
+    "name": "modern/value_categories",
+    "standard": "c++20",
+    "sources": ["modern/value_categories.cpp"],
+    "stdout": "categories=1,2,3,4 capture=8,10 elision=42 lifetime=24/2\n",
+    "features": [
+      "Perfect forwarding preserves mutable and const lvalue and rvalue categories for four ref-qualified member overloads",
+      "A move-only unique_ptr lambda capture transfers ownership and retains mutation state across calls",
+      "Guaranteed prvalue copy elision returns an object whose copy and move constructors are deleted",
+      "Both complete-object and member-subobject reference bindings extend temporary lifetime to block exit",
+      "Lifetime checks observe exact destruction at guaranteed scope boundaries rather than optional move counts"
+    ]
+  },
+  {
+    "name": "modern/three_way",
+    "standard": "c++20",
+    "sources": ["modern/three_way.cpp"],
+    "stdout": "comparison lexicographic=1 rewritten=1 partial=1 unordered=1\n",
+    "features": [
+      "Defaulted three-way comparison generates lexicographic strong ordering and default equality for integer aggregates",
+      "Reversed heterogeneous spaceship and equality candidates supply relational and inequality operators",
+      "A double-containing aggregate deduces partial_ordering and compares the secondary member when primary values tie",
+      "NaN yields unordered comparisons in both directions, false relational comparisons and unequal self-comparison"
+    ]
+  },
+  {
+    "name": "modern/aggregates_bindings",
+    "standard": "c++20",
+    "sources": ["modern/aggregates_bindings.cpp"],
+    "stdout": "aggregates copies=99,100 refs=10,10 weights=5,3,7 extra=9 policy=42\n",
+    "features": [
+      "Nested designated aggregate initialization preserves default member initializers and zero-initializes omitted array elements",
+      "Value structured bindings modify independent copies while reference bindings alias original members",
+      "Const-reference structured bindings observe later mutations and preserve const access",
+      "Array reference decomposition writes back to original elements",
+      "No_unique_address empty-policy members retain independent normal object behavior without layout assumptions"
+    ]
+  },
+  {
+    "name": "modern/explicit_object_subscript",
+    "standard": "c++23",
+    "sources": ["modern/explicit_object_subscript.cpp"],
+    "stdout": "explicit-object grid=43 accumulator=17 owned=13\n",
+    "features": [
+      "C++23 multidimensional operator[] supports constexpr mutation and mutable and const runtime indexing",
+      "Explicit-object member templates deduce all four const and value-category combinations",
+      "An explicit-object accessor forwards a member as int&, const int&, int&& or const int&&",
+      "Fluent explicit-object mutation returns the original lvalue or rvalue category and aliases lvalue storage",
+      "A temporary fluent chain is consumed within its lifetime with no feature-guard fallback"
+    ]
+  },
+  {
+    "name": "modern/coroutine_generator",
+    "standard": "c++20",
+    "sources": ["modern/coroutine_generator.cpp"],
+    "unsupported": "native coroutine suspension lowering is not implemented",
+    "stdout": "coroutine values=3,6,9 sum=18 early=2/1 replacement=1/1 exception=2/1\n",
+    "features": [
+      "Native coroutine initial suspension defers body execution and each yield resumes exactly one step",
+      "Full exhaustion yields 3,6,9 and destroys body-local RAII state before frame destruction",
+      "Moving a generator transfers suspended frame ownership and early destruction runs RAII cleanup exactly once",
+      "Move assignment destroys an existing suspended frame before accepting a second frame",
+      "Unhandled coroutine exceptions propagate their typed payload through exception_ptr and rethrow_exception",
+      "Exceptional completion unwinds local state and leaves the final-suspended frame safely destructible"
+    ]
+  }
+]

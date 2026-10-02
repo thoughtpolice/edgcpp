@@ -1,0 +1,45 @@
+[
+  {
+    "name": "interop/rtti",
+    "standard": "c++20",
+    "sources": ["interop/rtti_main.cpp", "interop/rtti_peer.cpp"],
+    "mixed": true,
+    "stdout": "interop-rtti score=100 roots=3 diamonds=2 stranger=1\n",
+    "features": [
+      "cross-TU Itanium RTTI with virtual diamond and multiple inheritance",
+      "upcast, downcast, crosscast, const cast, null cast and complete-object void cast",
+      "failed pointer and reference dynamic_cast with std::bad_cast handling",
+      "covariant-return adjustment through root, left and right virtual dispatch",
+      "secondary-base virtual deletion and exact final destruction invariants"
+    ]
+  },
+  {
+    "name": "interop/exceptions",
+    "standard": "c++20",
+    "sources": ["interop/exceptions_main.cpp", "interop/exceptions_peer.cpp"],
+    "mixed": true,
+    "stdout": "interop-exceptions sum=158 guards=4 live=0\n",
+    "features": [
+      "cross-TU typed class exception catch through a nonzero-offset base",
+      "typed pointer catch with base adjustment and const qualification conversion",
+      "rethrow preserves original derived class and original derived pointer type",
+      "RAII cleanup of producer and consumer frames during both unwind paths",
+      "exception object and heap-thrown object lifetime completion"
+    ]
+  },
+  {
+    "name": "interop/ownership",
+    "standard": "c++20",
+    "sources": ["interop/ownership_main.cpp", "interop/ownership_peer.cpp"],
+    "mixed": true,
+    "stdout": "interop-ownership result=192 shared=152 live=0\n",
+    "features": [
+      "nontrivial move-only aggregate return and by-value parameter ABI",
+      "std::string argument and aggregate member across GNU C++ ABI boundary",
+      "unique_ptr ownership transfer, stable pointee identity and destruction on both sides",
+      "adjusted data and nonvirtual/virtual function member pointers from both TUs",
+      "inline variable and function address identity across TUs",
+      "inline function-local static, variable template and template-local static ODR identity"
+    ]
+  }
+]

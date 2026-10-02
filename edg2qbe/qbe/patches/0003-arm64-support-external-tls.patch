@@ -1,0 +1,29 @@
+Subject: [PATCH 03/11] arm64: support ELF external thread-local symbols
+
+Lower external ELF TLS addresses with the GOTTPREL relocation sequence instead of rejecting them.
+
+---
+diff --git a/arm64/emit.c b/arm64/emit.c
+--- a/arm64/emit.c
++++ b/arm64/emit.c
+@@ -279,8 +280,18 @@
+ 			    "\tadd\tR, R, #:lo12:SO\n";
+ 		break;
+ 	case SExtThr:
+-		if (!T.apple)
+-			die("extern thread unavailable on arm64");
++		if (!T.apple) {
++			assert(!c->bits.i);
++			l = str(c->sym.id);
++			p = l[0] == '"' ? "" : T.assym;
++			const char *scratch = strcmp(rn, "x16") ? "x16" : "x17";
++			fprintf(e->f, "\tadrp\t%s, :gottprel:%s%s\n"
++				"\tldr\t%s, [%s, #:gottprel_lo12:%s%s]\n"
++				"\tmrs\t%s, tpidr_el0\n"
++				"\tadd\t%s, %s, %s\n",
++				rn, p, l, rn, rn, p, l, scratch, rn, scratch, rn);
++			return;
++		}
+ 		/* fall through */
+ 	case SThr:
+ 		if (T.apple)

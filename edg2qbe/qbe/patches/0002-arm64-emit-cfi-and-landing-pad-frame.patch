@@ -1,0 +1,265 @@
+Subject: [PATCH 02/11] arm64: emit CFI and reserve landing-pad frame state
+
+Describe frame setup, callee-save locations, and teardown with DWARF CFI. Reserve the fixed unwinder and edge-state area required by landing-pad calls, and give every basic block a stable assembly label.
+
+---
+diff --git a/arm64/emit.c b/arm64/emit.c
+--- a/arm64/emit.c
++++ b/arm64/emit.c
+@@ -7,6 +7,7 @@
+ 	Fn *fn;
+ 	uint64_t frame;
+ 	uint padding;
++	uint scratch;
+ };
+ 
+ #define CMP(X) \
+@@ -161,7 +162,7 @@
+ 		else
+ 			return 16 + e->frame - (s+2);
+ 	} else
+-		return 16 + e->padding + 4 * s;
++		return 16 + e->scratch + e->padding + 4 * s;
+ }
+ 
+ static void
+@@ -504,6 +525,18 @@
+ 	int *r;
+ 	uint o;
+ 	uint64_t f;
++	Blk *b;
++	Ins *i;
++	Con *c;
++
++	for (b=e->fn->start; b; b=b->link)
++		for (i=b->ins; i!=&b->ins[b->nins]; i++)
++			if (i->op == Ocall && rtype(i->arg[0]) == RCon) {
++				c = &e->fn->con[i->arg[0].val];
++				if (c->type == CAddr &&
++				    !strncmp(str(c->sym.id), "__edg_qbe_lpad_", 15))
++					e->scratch = 32; /* unwinder pair and edge status */
++			}
+ 
+ 	for (o=0, r=arm64_rclob; *r>=0; r++)
+ 		o += 1 & (e->fn->reg >> *r);
+@@ -511,7 +544,7 @@
+ 	f = (f + 3) & -4;
+ 	o += o & 1;
+ 	e->padding = 4*(f-e->fn->slot);
+-	e->frame = 4*f + 8*o;
++	e->frame = e->scratch + 4*f + 8*o;
+ }
+ 
+ /*
+@@ -533,7 +566,12 @@
+   |   locals    |  |
+   |    ...      |  |
+   +-------------+  |
+-  | e->padding  |  v
++  | e->padding  |  |
++  +-------------+  |
++  | edge status |  |
++  |  (padded)   |  |
++  | unwinder x0 |  |
++  | unwinder x1 |  v
+   +-------------+
+   |  saved x29  |
+   |  saved x30  |
+@@ -550,7 +588,7 @@
+ 	#undef X
+ 	};
+ 	static int id0;
+-	int s, n, c, lbl, *r;
++	int s, n, c, *r;
+ 	uint64_t o;
+ 	Blk *b, *t;
+ 	Ins *i;
+@@ -560,76 +598,86 @@
+ 	if (T.apple)
+ 		e->fn->lnk.align = 4;
+ 	emitfnlnk(e->fn->name, &e->fn->lnk, e->f);
+-	fputs("\thint\t#34\n", e->f);
++	fputs("\t.cfi_startproc\n\thint\t#34\n", e->f);
+ 	framelayout(e);
+-
++	o = e->frame + 16;
++	if (e->fn->vararg && !T.apple)
++		o += 192;
+ 	if (e->fn->vararg && !T.apple) {
+-		for (n=7; n>=0; n--)
++		for (n=7; n>=0; n--) {
+ 			fprintf(e->f, "\tstr\tq%d, [sp, -16]!\n", n);
+-		for (n=7; n>=0; n-=2)
++			fprintf(e->f, "\t.cfi_def_cfa_offset %d\n", (8-n)*16);
++		}
++		for (n=7; n>=0; n-=2) {
+ 			fprintf(e->f, "\tstp\tx%d, x%d, [sp, -16]!\n", n-1, n);
+-	}
+-
+-	if (e->frame + 16 <= 512)
++			fprintf(e->f, "\t.cfi_def_cfa_offset %d\n", 128+(9-n)*8);
++		}
++	}
++
++	if (e->frame + 16 <= 512) {
+ 		fprintf(e->f,
+ 			"\tstp\tx29, x30, [sp, -%"PRIu64"]!\n",
+ 			e->frame + 16
+ 		);
+-	else if (e->frame <= 4095)
+-		fprintf(e->f,
+-			"\tsub\tsp, sp, #%"PRIu64"\n"
+-			"\tstp\tx29, x30, [sp, -16]!\n",
+-			e->frame
+-		);
+-	else if (e->frame <= 65535)
+-		fprintf(e->f,
+-			"\tmov\tx16, #%"PRIu64"\n"
+-			"\tsub\tsp, sp, x16\n"
+-			"\tstp\tx29, x30, [sp, -16]!\n",
+-			e->frame
+-		);
+-	else
+-		fprintf(e->f,
+-			"\tmov\tx16, #%"PRIu64"\n"
+-			"\tmovk\tx16, #%"PRIu64", lsl #16\n"
+-			"\tsub\tsp, sp, x16\n"
+-			"\tstp\tx29, x30, [sp, -16]!\n",
+-			e->frame & 0xFFFF, e->frame >> 16
+-		);
+-	fputs("\tmov\tx29, sp\n", e->f);
+-	s = (e->frame - e->padding) / 4;
++	} else {
++		if (e->frame <= 4095)
++			fprintf(e->f, "\tsub\tsp, sp, #%"PRIu64"\n", e->frame);
++		else {
++			fprintf(e->f, "\tmov\tx16, #%"PRIu64"\n", e->frame & 0xFFFF);
++			if (e->frame > 65535)
++				fprintf(e->f, "\tmovk\tx16, #%"PRIu64", lsl #16\n",
++					e->frame >> 16);
++			fputs("\tsub\tsp, sp, x16\n", e->f);
++		}
++		fprintf(e->f, "\t.cfi_def_cfa_offset %"PRIu64"\n", o - 16);
++		fputs("\tstp\tx29, x30, [sp, -16]!\n", e->f);
++	}
++	fprintf(e->f,
++		"\t.cfi_def_cfa_offset %"PRIu64"\n"
++		"\t.cfi_offset 29, -%"PRIu64"\n"
++		"\t.cfi_offset 30, -%"PRIu64"\n"
++		"\tmov\tx29, sp\n"
++		"\t.cfi_def_cfa_register 29\n",
++		o, o, o - 8
++	);
++	s = (e->frame - e->scratch - e->padding) / 4;
+ 	for (r=arm64_rclob; *r>=0; r++)
+ 		if (e->fn->reg & BIT(*r)) {
+ 			s -= 2;
+ 			i = &(Ins){.arg = {TMP(*r), SLOT(s)}};
+ 			i->op = *r >= V0 ? Ostored : Ostorel;
+ 			emitins(i, e);
+-		}
+-
+-	for (lbl=0, b=e->fn->start; b; b=b->link) {
+-		if (lbl || b->npred > 1)
+-			fprintf(e->f, "%s%d:\n", T.asloc, id0+b->id);
++			fprintf(e->f, "\t.cfi_offset %d, %"PRId64"\n",
++				*r >= V0 ? 64 + *r - V0 : *r - R0,
++				(int64_t)slot(SLOT(s), e) - (int64_t)o);
++		}
++
++	for (b=e->fn->start; b; b=b->link) {
++		fprintf(e->f, "%sbb%d:\n", T.asloc, id0+b->id);
+ 		for (i=b->ins; i!=&b->ins[b->nins]; i++)
+ 			emitins(i, e);
+-		lbl = 1;
+ 		switch (b->jmp.type) {
+ 		case Jhlt:
+ 			fprintf(e->f, "\tbrk\t#1000\n");
+ 			break;
+ 		case Jret0:
+-			s = (e->frame - e->padding) / 4;
++			fputs("\t.cfi_remember_state\n", e->f);
++			s = (e->frame - e->scratch - e->padding) / 4;
+ 			for (r=arm64_rclob; *r>=0; r++)
+ 				if (e->fn->reg & BIT(*r)) {
+ 					s -= 2;
+ 					i = &(Ins){Oload, 0, TMP(*r), {SLOT(s)}};
+ 					i->cls = *r >= V0 ? Kd : Kl;
+ 					emitins(i, e);
++					fprintf(e->f, "\t.cfi_restore %d\n",
++						*r >= V0 ? 64 + *r - V0 : *r - R0);
+ 				}
+ 			if (e->fn->dynalloc)
+ 				fputs("\tmov sp, x29\n", e->f);
+ 			o = e->frame + 16;
+ 			if (e->fn->vararg && !T.apple)
+ 				o += 192;
++			fprintf(e->f, "\t.cfi_def_cfa 31, %"PRIu64"\n", o);
+ 			if (o <= 504)
+ 				fprintf(e->f,
+ 					"\tldp\tx29, x30, [sp], %"PRIu64"\n",
+@@ -638,35 +686,41 @@
+ 			else if (o - 16 <= 4095)
+ 				fprintf(e->f,
+ 					"\tldp\tx29, x30, [sp], 16\n"
++					"\t.cfi_def_cfa_offset %"PRIu64"\n"
++					"\t.cfi_restore 29\n\t.cfi_restore 30\n"
+ 					"\tadd\tsp, sp, #%"PRIu64"\n",
+-					o - 16
++					o - 16, o - 16
+ 				);
+ 			else if (o - 16 <= 65535)
+ 				fprintf(e->f,
+ 					"\tldp\tx29, x30, [sp], 16\n"
++					"\t.cfi_def_cfa_offset %"PRIu64"\n"
++					"\t.cfi_restore 29\n\t.cfi_restore 30\n"
+ 					"\tmov\tx16, #%"PRIu64"\n"
+ 					"\tadd\tsp, sp, x16\n",
+-					o - 16
++					o - 16, o - 16
+ 				);
+ 			else
+ 				fprintf(e->f,
+ 					"\tldp\tx29, x30, [sp], 16\n"
++					"\t.cfi_def_cfa_offset %"PRIu64"\n"
++					"\t.cfi_restore 29\n\t.cfi_restore 30\n"
+ 					"\tmov\tx16, #%"PRIu64"\n"
+ 					"\tmovk\tx16, #%"PRIu64", lsl #16\n"
+ 					"\tadd\tsp, sp, x16\n",
+-					(o - 16) & 0xFFFF, (o - 16) >> 16
++					o - 16, (o - 16) & 0xFFFF, (o - 16) >> 16
+ 				);
+-			fprintf(e->f, "\tret\n");
++			fputs("\t.cfi_def_cfa_offset 0\n"
++				"\t.cfi_restore 29\n\t.cfi_restore 30\n"
++				"\tret\n\t.cfi_restore_state\n", e->f);
+ 			break;
+ 		case Jjmp:
+ 		Jmp:
+ 			if (b->s1 != b->link)
+ 				fprintf(e->f,
+-					"\tb\t%s%d\n",
++					"\tb\t%sbb%d\n",
+ 					T.asloc, id0+b->s1->id
+ 				);
+-			else
+-				lbl = 0;
+ 			break;
+ 		default:
+ 			c = b->jmp.type - Jjf;
+@@ -680,13 +734,14 @@
+ 			} else
+ 				n = 1;
+ 			fprintf(e->f,
+-				"\tb%s\t%s%d\n",
++				"\tb%s\t%sbb%d\n",
+ 				ctoa[c][n], T.asloc, id0+b->s2->id
+ 			);
+ 			goto Jmp;
+ 		}
+ 	}
+ 	id0 += e->fn->nblk;
++	fputs("\t.cfi_endproc\n", e->f);
+ 	if (!T.apple)
+ 		elf_emitfnfin(fn->name, out);
+ }

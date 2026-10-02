@@ -1,0 +1,22 @@
+Subject: [PATCH 10/11] copy: preserve phi width when replacing it with jnz
+
+Only replace an integer 0/1 phi with its dominating branch condition when the condition is at least as wide as the phi result.
+
+---
+diff --git a/copy.c b/copy.c
+--- a/copy.c
++++ b/copy.c
+@@ -413,9 +417,12 @@ phicopyref(Fn *fn, Blk *b, Phi *p)
+ 	/* can be replaced by a
+ 	 * dominating jnz arg */
+ 	d = b->idom;
+ 	if (p->narg != 2
++	|| KBASE(p->cls) != 0
+ 	|| d->jmp.type != Jjnz
+-	|| !isw1(fn, d->jmp.arg))
++	|| !isw1(fn, d->jmp.arg)
++	|| (rtype(d->jmp.arg) == RTmp
++	    && KWIDE(p->cls) > KWIDE(fn->tmp[d->jmp.arg.val].cls)))
+ 		return R;
+ 
+ 	s = (Blk*[]){0, 0};
